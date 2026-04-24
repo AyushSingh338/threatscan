@@ -1,0 +1,168 @@
+# ThreatScan — Complete Setup & Deploy Guide
+# =============================================
+
+## FOLDER STRUCTURE
+```
+threatscan/
+├── app.py              ← Main Flask server
+├── train.py            ← ML model training script
+├── index.html          ← Frontend UI
+├── requirements.txt    ← Python packages
+├── Dockerfile          ← Google Cloud Run ke liye
+├── .gitignore
+└── data/               ← Auto-create hoga
+    ├── users.db        ← SQLite database
+    ├── model.pkl       ← Trained ML model
+    └── vectorizer.pkl  ← TF-IDF vectorizer
+```
+
+---
+
+## PART 1 — VS CODE LOCAL SETUP
+
+### Step 1: Python Install karo
+1. https://python.org/downloads — Latest version download karo
+2. Install karte time ✅ "Add Python to PATH" zaroor check karo
+3. VS Code open karo → Extensions (Ctrl+Shift+X) → "Python" install karo
+
+### Step 2: Project folder VS Code mein kholo
+1. `threatscan` folder ko VS Code mein open karo
+   File → Open Folder → threatscan select karo
+
+### Step 3: Virtual Environment banao
+VS Code mein Terminal kholo (Ctrl+` backtick) aur ye commands chalao:
+
+```bash
+# Virtual environment banao
+python -m venv venv
+
+# Activate karo (Windows)
+venv\Scripts\activate
+
+# Activate karo (Mac/Linux)
+source venv/bin/activate
+
+# Packages install karo
+pip install -r requirements.txt
+```
+
+### Step 4: ML Model Train karo
+Apna dataset CSV rakho folder mein, phir:
+```bash
+python train.py --dataset your_dataset.csv
+```
+✅ data/model.pkl aur data/vectorizer.pkl ban jaayenge
+
+### Step 5: Local run karo
+```bash
+python app.py
+```
+Browser mein kholo: http://localhost:5000
+Admin panel:        http://localhost:5000/admin/users
+
+### Database kaise dekho (VS Code mein)
+1. VS Code Extensions → "SQLite Viewer" install karo
+2. data/users.db file pe click karo
+3. Seedha VS Code mein hi table dikhega ✅
+
+---
+
+## PART 2 — GOOGLE CLOUD RUN DEPLOY
+
+### Step 1: Google Cloud Account
+1. https://cloud.google.com → Sign in with Google account
+2. New Project banao → Name: "threatscan"
+3. Billing enable karo (credit card maangega, but FREE tier mein charge nahi hoga)
+   Free tier: 2 million requests/month — personal project ke liye kaafi hai
+
+### Step 2: Google Cloud CLI install karo
+1. https://cloud.google.com/sdk/docs/install
+2. Download karo apne OS ke liye
+3. Install karo, phir terminal mein:
+```bash
+gcloud init
+# Browser mein Google account se login karega
+# Project "threatscan" select karo
+```
+
+### Step 3: ML model files bhi include karo
+.gitignore mein se pkl lines remove karo (ya data/ folder ka content
+Cloud Run image mein include karna hoga):
+
+```bash
+# IMPORTANT: Train karne ke baad data/ folder mein ye files hongi:
+# data/model.pkl
+# data/vectorizer.pkl
+# Inhe Dockerfile COPY . . se copy hone do — .gitignore se pkl lines hatao
+```
+
+.gitignore mein ye lines REMOVE karo deploy karne se pehle:
+```
+data/*.pkl     ← ye line hatao
+```
+
+### Step 4: Deploy karo (sirf ek command!)
+```bash
+# Terminal mein threatscan folder mein jao
+cd threatscan
+
+# Deploy!
+gcloud run deploy threatscan \
+  --source . \
+  --platform managed \
+  --region asia-south1 \
+  --allow-unauthenticated \
+  --port 8080
+```
+
+Mumbai region (asia-south1) use karo — India ke liye fast rahega.
+
+### Step 5: Done! 🎉
+Command complete hone ke baad URL milega:
+```
+Service URL: https://threatscan-xxxxxxxx-el.a.run.app
+```
+Ye URL share kar sakte ho sabke saath!
+
+---
+
+## IMPORTANT NOTES
+
+### SQLite aur Cloud Run
+Cloud Run mein SQLite ka data restart hone pe DELETE ho jaata hai
+(ephemeral filesystem). Fix ke liye 2 options:
+
+**Option A (Simple — Free):**
+Google Cloud SQL ki jagah, SQLite file ko Google Cloud Storage pe save karo.
+Iske liye mujhse poochho — main code update kar dunga.
+
+**Option B (Recommended):**
+Supabase.com use karo — free PostgreSQL database, 3 click setup.
+Main connection code de sakta hoon.
+
+### Environment Variables (API Keys secure karna)
+Keys directly code mein nahi rakhni chahiye production mein.
+Cloud Run mein environment variables set karo:
+```bash
+gcloud run services update threatscan \
+  --set-env-vars VT_API_KEY=your_key,IPQS_KEY=your_key,NUMVERIFY_KEY=your_key \
+  --region asia-south1
+```
+
+---
+
+## QUICK REFERENCE COMMANDS
+
+```bash
+# Local run
+python app.py
+
+# Local database check (terminal se)
+sqlite3 data/users.db "SELECT id,name,email,created_at FROM users;"
+
+# Deploy to Cloud Run
+gcloud run deploy threatscan --source . --platform managed --region asia-south1 --allow-unauthenticated
+
+# Logs dekhna
+gcloud run logs read --service threatscan --region asia-south1
+```
