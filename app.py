@@ -79,6 +79,8 @@ def index():
         return Response(f.read(), mimetype='text/html; charset=utf-8')
 
 @app.route('/auth/register', methods=['POST'])
+import re
+
 def register():
     try:
         d = request.get_json(force=True)
@@ -87,6 +89,12 @@ def register():
         pw = str(d.get('password','')).strip()
         if not name or not email or not pw:
             return jsonify({"error": "All fields required"}), 400
+        
+        # Email format validation
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_regex, email):
+            return jsonify({"error": "Invalid email format (e.g. user@example.com)"}), 400
+        
         if len(pw) < 6:
             return jsonify({"error": "Password min 6 characters"}), 400
         conn = get_db()
